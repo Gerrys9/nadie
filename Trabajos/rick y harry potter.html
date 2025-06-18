@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mini Gallery - Rick & Morty / Harry Potter</title>
+  <style>
+    :root {
+      --primario: rgba(34, 34, 34, 0.9);
+      --secundario: #ff6f61;
+      --terciario: #ffa07a;
+      --fondo-card: #2f2f2f;
+      --resaltado: #ffd166;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1470&q=80') no-repeat center/cover fixed;
+      color: white;
+      min-height: 100vh;
+    }
+    header {
+      background-color: var(--primario);
+      padding: 15px;
+      text-align: center;
+    }
+    .search {
+      background: #fff;
+      border: 3px solid var(--terciario);
+      border-radius: 25px;
+      padding: 10px 20px;
+      font-size: 16px;
+      width: 250px;
+      margin-bottom: 10px;
+      color: #333;
+    }
+    main {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding: 20px;
+    }
+    .personaje {
+      width: 300px;
+      margin: 20px;
+      background: var(--primario);
+      border-radius: 10px;
+      box-shadow: 0 0 15px var(--terciario);
+      transition: transform 0.3s;
+      overflow: hidden;
+    }
+    .personaje:hover {
+      transform: scale(1.05);
+    }
+    .personaje img {
+      width: 100%;
+      height: 300px;
+      object-fit: cover;
+      filter: drop-shadow(0 0 3px var(--secundario));
+    }
+    .personaje-info {
+      padding: 10px 15px;
+      background-color: var(--fondo-card);
+    }
+    .personaje-info h3 {
+      color: var(--resaltado);
+      margin-bottom: 5px;
+    }
+    .personaje-info p {
+      margin: 4px 0;
+      font-size: 14px;
+    }
+    a {
+      color: var(--secundario);
+      font-size: 14px;
+      text-decoration: underline;
+    }
+    @media (max-width: 600px) {
+      .personaje {
+        width: 90%;
+      }
+      .search {
+        width: 80%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <form id="form">
+      <input
+        type="text"
+        id="search"
+        class="search"
+        placeholder="Busca un personaje..."
+        autocomplete="off"
+      />
+    </form>
+  </header>
+
+  <main id="main"></main>
+
+  <script>
+    const API_RICK = 'https://rickandmortyapi.com/api/character';
+    const API_HP = 'https://hp-api.onrender.com/api/characters';
+    const IMG_DEFAULT = 'https://via.placeholder.com/300x300?text=Sin+imagen';
+
+    const main = document.getElementById('main');
+    const form = document.getElementById('form');
+    const search = document.getElementById('search');
+
+    let characters = [];
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const term = search.value.toLowerCase().trim();
+      if (!term) {
+        show(characters);
+        return;
+      }
+      // Normalización para mejorar búsqueda (opcional)
+      const normalize = str => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const termNorm = normalize(term);
+
+      const filtered = characters.filter(c =>
+        normalize(c.name.toLowerCase()).includes(termNorm)
+      );
+
+      if (filtered.length) {
+        show(filtered);
+      } else {
+        main.innerHTML = '<p style="color: var(--secundario);">No se encontraron personajes con ese nombre.</p>';
+      }
+    });
+
+    async function getCharacters() {
+      main.innerHTML = '<p>Cargando personajes...</p>';
+      try {
+        const [rickRes, hpRes] = await Promise.all([
+          fetch(API_RICK),
+          fetch(API_HP)
+        ]);
+
+        if (!rickRes.ok || !hpRes.ok) {
+          throw new Error('Error al obtener datos de las APIs');
+        }
+
+        const rickData = await rickRes.json();
+        const hpData = await hpRes.json();
+
+        // Agregamos campo source para distinguir
+        const rickCharacters = rickData.results.slice(0, 6).map(c => ({ ...c, source: 'rick' }));
+        const hpCharacters = hpData.map(c => ({ ...c, source: 'hp' }));
+
+        characters = [...rickCharacters, ...hpCharacters];
+        show(characters);
+      } catch (err) {
+        main.innerHTML = `<p style="color: var(--secundario);">Error al cargar personajes: ${err.message}</p>`;
+      }
+    }
+
+    function show(chars) {
+      if (chars.length === 0) {
+        main.innerHTML = '<p style="color: var(--secundario);">No hay personajes para mostrar.</p>';
+        return;
+      }
+
+      main.innerHTML = chars
+        .map((c) => {
+          if (c.source === 'rick') {
+            const { name, image, status, species, gender, origin } = c;
+            return `
+            <div class="personaje">
+              <img src="${image}" alt="${name}" />
+              <div class="personaje-info">
+                <h3>${name}</h3>
+                <p><strong>Estado:</strong> ${status}</p>
+                <p><strong>Especie:</strong> ${species}</p>
+                <p><strong>Género:</strong> ${gender}</p>
+                <p><strong>Origen:</strong> ${origin.name}</p>
+              </div>
+            </div>`;
+          } else {
+            const { name, image, gender, house, species, ancestry, dateOfBirth } = c;
+            return `
+            <div class="personaje">
+              <img src="${image || IMG_DEFAULT}" alt="${name}" />
+              <div class="personaje-info">
+                <h3>${name}</h3>
+                <p><strong>Género:</strong> ${gender || 'Desconocido'}</p>
+                <p><strong>Casa:</strong> ${house || 'Desconocida'}</p>
+                <p><strong>Especie:</strong> ${species || 'Desconocida'}</p>
+                <p><strong>Ascendencia:</strong> ${ancestry || 'Desconocida'}</p>
+                <p><strong>Fecha de nacimiento:</strong> ${dateOfBirth || 'Desconocida'}</p>
+              </div>
+            </div>`;
+          }
+        })
+        .join('');
+    }
+
+    getCharacters();
+  </script>
+</body>
+</html>
